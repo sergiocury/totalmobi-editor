@@ -37,6 +37,24 @@
 
     .ql-toolbar.ql-snow .ql-formats { margin-right: 6px; }
 
+    /* Botão HTML na toolbar */
+    .ql-html-btn {
+      background: none;
+      border: 1px solid #ccc !important;
+      border-radius: 4px !important;
+      padding: 2px 7px !important;
+      font-size: 12px !important;
+      font-weight: 700;
+      color: #555;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .ql-html-btn.active {
+      background: #1565C0 !important;
+      color: #fff !important;
+      border-color: #1565C0 !important;
+    }
+
     #save-btn {
       background: #1565C0;
       color: #ffffff;
@@ -79,8 +97,26 @@
     .ql-editor h1  { font-size: 1.6em; margin-bottom: 8px; }
     .ql-editor h2  { font-size: 1.3em; margin-bottom: 6px; }
     .ql-editor p   { margin-bottom: 8px; }
-    .ql-editor img { max-width: 100%; height: auto; border-radius: 4px; }
+    .ql-editor img { max-width: 100%; height: auto; border-radius: 4px; cursor: pointer; }
     .ql-editor a   { color: #1565C0; }
+
+    /* HTML source textarea */
+    #html-source {
+      display: none;
+      flex: 1;
+      width: 100%;
+      padding: 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      border: none;
+      outline: none;
+      resize: none;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      overflow-y: auto;
+    }
+    #html-source.visible { display: block; }
 
     /* Overlay de carregamento/upload */
     #overlay {
@@ -125,6 +161,61 @@
     #toast.success { background: #2e7d32; }
     #toast.error   { background: #c62828; }
     #toast.info    { background: #1565c0; }
+
+    /* Modal de link de imagem */
+    #img-link-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 400;
+      align-items: center;
+      justify-content: center;
+    }
+    #img-link-modal.visible { display: flex; }
+
+    #img-link-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      width: 90%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+    #img-link-box h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #212121;
+    }
+    #img-link-input {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      width: 100%;
+    }
+    #img-link-input:focus { border-color: #1565C0; }
+
+    .modal-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .modal-btns button {
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+    #img-link-cancel { background: #e0e0e0; color: #333; }
+    #img-link-remove { background: #c62828; color: #fff; }
+    #img-link-ok     { background: #1565C0; color: #fff; }
   </style>
 </head>
 <body>
@@ -159,12 +250,29 @@
         <button class="ql-image"></button>
         <button class="ql-clean"></button>
       </span>
+      <span class="ql-formats">
+        <button class="ql-html-btn" onclick="toggleHtml()" title="Ver/editar código HTML">&lt;/&gt;</button>
+      </span>
     </div>
     <button id="save-btn" onclick="saveContent()">Guardar</button>
   </div>
 
   <div id="editor-wrapper">
     <div id="editor"></div>
+    <textarea id="html-source" placeholder="Cole ou edite o HTML aqui..."></textarea>
+  </div>
+
+  <!-- Modal: Link de imagem -->
+  <div id="img-link-modal">
+    <div id="img-link-box">
+      <h3>🔗 Link da imagem</h3>
+      <input id="img-link-input" type="url" placeholder="https://exemplo.com/pagina">
+      <div class="modal-btns">
+        <button id="img-link-cancel" onclick="closeImgLink()">Cancelar</button>
+        <button id="img-link-remove" onclick="removeImgLink()">Remover link</button>
+        <button id="img-link-ok"     onclick="applyImgLink()">Aplicar</button>
+      </div>
+    </div>
   </div>
 
   <div id="overlay"><div class="spinner"></div><span id="overlay-msg">A carregar...</span></div>
@@ -180,6 +288,7 @@
     const BUCKET     = params.get('bucket')    || '';
     const TOKEN      = params.get('token')     || '';
     const SUPABASE   = 'https://ulpsaxhocvezcohbndpz.supabase.co';
+    const ANON_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscHNheGhvY3ZlemNvaGJuZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTIyMTAsImV4cCI6MjA4ODUyODIxMH0.e8kl7ZoHgVUM_KottkL2LJPr1OBQ29p4K8TrJoxapQU';
 
     // ── Utilitários ───────────────────────────────────────────
     function showOverlay(msg) {
@@ -209,6 +318,88 @@
       placeholder: 'Escreva o conteúdo do artigo aqui...'
     });
 
+    // ── Toggle HTML source ────────────────────────────────────
+    var htmlMode = false;
+    function toggleHtml() {
+      var btn      = document.querySelector('.ql-html-btn');
+      var source   = document.getElementById('html-source');
+      var editorEl = document.getElementById('editor');
+
+      if (!htmlMode) {
+        // Entra em modo HTML — mostra o código
+        var html = quill.root.innerHTML;
+        if (html === '<p><br></p>') html = '';
+        source.value = html;
+        editorEl.style.display = 'none';
+        source.classList.add('visible');
+        btn.classList.add('active');
+        htmlMode = true;
+      } else {
+        // Sai do modo HTML — aplica o código editado
+        var edited = source.value.trim();
+        quill.clipboard.dangerouslyPasteHTML(edited || '');
+        source.classList.remove('visible');
+        editorEl.style.display = '';
+        btn.classList.remove('active');
+        htmlMode = false;
+        showToast('✓ HTML aplicado ao editor', 'success');
+      }
+    }
+
+    // ── Link em imagens — clique na imagem abre o modal ───────
+    var currentImgEl = null;
+
+    quill.root.addEventListener('click', function(e) {
+      if (e.target && e.target.tagName === 'IMG') {
+        currentImgEl = e.target;
+        var existing = '';
+        // Verifica se a imagem está envolvida num <a>
+        if (currentImgEl.parentElement && currentImgEl.parentElement.tagName === 'A') {
+          existing = currentImgEl.parentElement.getAttribute('href') || '';
+        }
+        document.getElementById('img-link-input').value = existing;
+        document.getElementById('img-link-modal').classList.add('visible');
+      }
+    });
+
+    function closeImgLink() {
+      document.getElementById('img-link-modal').classList.remove('visible');
+      currentImgEl = null;
+    }
+
+    function applyImgLink() {
+      if (!currentImgEl) { closeImgLink(); return; }
+      var url = document.getElementById('img-link-input').value.trim();
+      if (!url) { removeImgLink(); return; }
+
+      // Envolve a imagem num <a> ou actualiza o href existente
+      var parent = currentImgEl.parentElement;
+      if (parent && parent.tagName === 'A') {
+        parent.setAttribute('href', url);
+        parent.setAttribute('target', '_blank');
+      } else {
+        var a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        currentImgEl.parentNode.insertBefore(a, currentImgEl);
+        a.appendChild(currentImgEl);
+      }
+      showToast('✓ Link adicionado à imagem', 'success');
+      closeImgLink();
+    }
+
+    function removeImgLink() {
+      if (!currentImgEl) { closeImgLink(); return; }
+      var parent = currentImgEl.parentElement;
+      if (parent && parent.tagName === 'A') {
+        // Remove o <a> e deixa só a imagem
+        parent.parentNode.insertBefore(currentImgEl, parent);
+        parent.parentNode.removeChild(parent);
+        showToast('Link removido da imagem', 'info');
+      }
+      closeImgLink();
+    }
+
     // ── Carrega conteúdo do Supabase ──────────────────────────
     async function loadContent() {
       if (!ARTICLE_ID) { showToast('❌ Sem articleId', 'error'); return; }
@@ -219,7 +410,7 @@
           SUPABASE + '/rest/v1/tot_articles?id=eq.' + ARTICLE_ID + '&select=content',
           { headers: {
               'Authorization': 'Bearer ' + TOKEN,
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscHNheGhvY3ZlemNvaGJuZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTIyMTAsImV4cCI6MjA4ODUyODIxMH0.e8kl7ZoHgVUM_KottkL2LJPr1OBQ29p4K8TrJoxapQU'
+              'apikey': ANON_KEY
           }}
         );
         if (!res.ok) {
@@ -288,6 +479,10 @@
         showToast('Sem articleId ou token — não é possível guardar', 'error');
         return;
       }
+
+      // Se estiver em modo HTML, aplica primeiro o código editado
+      if (htmlMode) { toggleHtml(); }
+
       var btn  = document.getElementById('save-btn');
       var html = quill.root.innerHTML;
       if (html === '<p><br></p>') html = '';
@@ -302,7 +497,7 @@
           { method: 'PATCH',
             headers: {
               'Authorization': 'Bearer ' + TOKEN,
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscHNheGhvY3ZlemNvaGJuZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTIyMTAsImV4cCI6MjA4ODUyODIxMH0.e8kl7ZoHgVUM_KottkL2LJPr1OBQ29p4K8TrJoxapQU',
+              'apikey': ANON_KEY,
               'Content-Type': 'application/json',
               'Prefer': 'return=minimal'
             },
