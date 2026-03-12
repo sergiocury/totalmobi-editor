@@ -211,7 +211,8 @@
 
     // ── Carrega conteúdo do Supabase ──────────────────────────
     async function loadContent() {
-      if (!ARTICLE_ID || !TOKEN) return;
+      if (!ARTICLE_ID) { showToast('❌ Sem articleId', 'error'); return; }
+      if (!TOKEN)      { showToast('❌ Sem token — verifique FlutterFlow', 'error'); return; }
       showOverlay('A carregar conteúdo...');
       try {
         var res = await fetch(
@@ -221,12 +222,20 @@
               'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscHNheGhvY3ZlemNvaGJuZHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NTIyMTAsImV4cCI6MjA4ODUyODIxMH0.lt4ACtHsJMWRRRiGUOEMuXHqx7P2y_tFnCkT3OdBOyk'
           }}
         );
+        if (!res.ok) {
+          var errText = await res.text();
+          showToast('HTTP ' + res.status + ': ' + errText.slice(0,60), 'error');
+          return;
+        }
         var data = await res.json();
         if (data && data[0] && data[0].content) {
           quill.clipboard.dangerouslyPasteHTML(data[0].content);
+          showToast('✓ Conteúdo carregado', 'success');
+        } else {
+          showToast('Artigo sem conteúdo (editor vazio)', 'info');
         }
       } catch(e) {
-        showToast('Erro ao carregar conteúdo', 'error');
+        showToast('Erro de rede: ' + e.message, 'error');
       } finally {
         hideOverlay();
       }
