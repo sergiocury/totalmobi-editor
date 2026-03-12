@@ -335,14 +335,17 @@
         btn.classList.add('active');
         htmlMode = true;
       } else {
-        // Sai do modo HTML — aplica o código editado
+        // Sai do modo HTML — primeiro restaura visibilidade, depois aplica
         var edited = source.value.trim();
-        quill.clipboard.dangerouslyPasteHTML(edited || '');
         source.classList.remove('visible');
         editorEl.style.display = '';
         btn.classList.remove('active');
         htmlMode = false;
-        showToast('✓ HTML aplicado ao editor', 'success');
+        // Só aplica depois do editor estar visível no DOM
+        setTimeout(function() {
+          quill.clipboard.dangerouslyPasteHTML(edited || '<p></p>');
+          showToast('✓ HTML aplicado ao editor', 'success');
+        }, 50);
       }
     }
 
