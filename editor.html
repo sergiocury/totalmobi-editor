@@ -1,1 +1,194 @@
-<!DOCTYPE html>\n<html lang="pt">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Editor Totalmobi</title>\n    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">\n    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>\n    <style>\n        #editor {\n            height: 300px;\n        }\n    </style>\n</head>\n<body>\n    <div id="editor"></div>\n    <script>\n        var quill = new Quill('#editor', {\n            theme: 'snow',\n            modules: {\n                toolbar: [\n                    [{ 'header': [1, 2, false] }],\n                    ['bold', 'italic', 'underline'],\n                    ['list', 'link', 'image']\n                ]\n            },\n            placeholder: 'Digite aqui...',\n            language: 'pt-br'\n        });\n    </script>\n</body>\n</html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Editor Totalmobi</title>
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Barra superior com toolbar + botão Guardar ── */
+    #top-bar {
+      background: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .ql-toolbar.ql-snow {
+      border: none !important;
+      padding: 0 !important;
+      flex: 1;
+    }
+
+    .ql-toolbar.ql-snow .ql-formats {
+      margin-right: 6px;
+    }
+
+    #save-btn {
+      background: #1565C0;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+
+    #save-btn:active {
+      background: #0d47a1;
+    }
+
+    /* ── Área do editor ── */
+    #editor-wrapper {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ql-container.ql-snow {
+      border: none !important;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .ql-editor {
+      font-size: 16px;
+      line-height: 1.7;
+      padding: 16px;
+      min-height: 100%;
+      color: #212121;
+    }
+
+    .ql-editor.ql-blank::before {
+      color: #9e9e9e;
+      font-style: normal;
+    }
+
+    .ql-editor h1 { font-size: 1.6em; margin-bottom: 8px; }
+    .ql-editor h2 { font-size: 1.3em; margin-bottom: 6px; }
+    .ql-editor p  { margin-bottom: 8px; }
+    .ql-editor img { max-width: 100%; height: auto; }
+    .ql-editor a  { color: #1565C0; }
+
+    /* ── Indicador de estado ── */
+    #status {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      background: #4CAF50;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      display: none;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="top-bar">
+    <div id="toolbar">
+      <span class="ql-formats">
+        <select class="ql-header">
+          <option value="1">Título 1</option>
+          <option value="2">Título 2</option>
+          <option value="3">Título 3</option>
+          <option selected>Normal</option>
+        </select>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-bold"></button>
+        <button class="ql-italic"></button>
+        <button class="ql-underline"></button>
+        <button class="ql-strike"></button>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-list" value="ordered"></button>
+        <button class="ql-list" value="bullet"></button>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-align" value=""></button>
+        <button class="ql-align" value="center"></button>
+        <button class="ql-align" value="right"></button>
+      </span>
+      <span class="ql-formats">
+        <button class="ql-link"></button>
+        <button class="ql-clean"></button>
+      </span>
+    </div>
+    <button id="save-btn" onclick="saveContent()">Guardar</button>
+  </div>
+
+  <div id="editor-wrapper">
+    <div id="editor"></div>
+  </div>
+
+  <div id="status">✓ Guardado</div>
+
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <script>
+    // Inicializa o editor Quill
+    var quill = new Quill('#editor', {
+      theme: 'snow',
+      modules: {
+        toolbar: '#toolbar'
+      },
+      placeholder: 'Escreva o conteúdo do artigo aqui...'
+    });
+
+    // ── Receber conteúdo HTML do Flutter ──────────────────────
+    // Flutter chama: setContent('<p>conteudo...</p>')
+    function setContent(html) {
+      if (html && html.trim() !== '') {
+        quill.clipboard.dangerouslyPasteHTML(html);
+      }
+    }
+
+    // ── Guardar e enviar HTML de volta para o Flutter ─────────
+    function saveContent() {
+      var html = quill.root.innerHTML;
+
+      // Limpar conteúdo vazio padrão do Quill
+      if (html === '<p><br></p>' || html.trim() === '') {
+        html = '';
+      }
+
+      // Enviar para o Flutter via JavaScript Channel
+      if (window.FlutterChannel) {
+        window.FlutterChannel.postMessage(html);
+      }
+
+      // Mostrar feedback visual
+      var status = document.getElementById('status');
+      status.style.display = 'block';
+      setTimeout(function() { status.style.display = 'none'; }, 2000);
+    }
+
+    // Expõe funções globalmente para o Flutter chamar via JS injection
+    window.setContent  = setContent;
+    window.saveContent = saveContent;
+  </script>
+</body>
+</html>
